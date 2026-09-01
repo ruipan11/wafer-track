@@ -10,6 +10,7 @@ import com.wafertrack.repository.LotRepository;
 import com.wafertrack.repository.RouteStepRepository;
 import com.wafertrack.service.exception.NotFoundException;
 import com.wafertrack.service.exception.TrackException;
+import com.wafertrack.repository.LotHoldRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,21 +28,28 @@ public class TrackService {
     private final RouteStepRepository routeStepRepository;
     private final EquipmentRepository equipmentRepository;
     private final LotHistoryRepository lotHistoryRepository;
+    private final LotHoldRepository lotHoldRepository;
 
     public TrackService(LotRepository lotRepository,
                         RouteStepRepository routeStepRepository,
                         EquipmentRepository equipmentRepository,
-                        LotHistoryRepository lotHistoryRepository) {
+                        LotHistoryRepository lotHistoryRepository,
+                        LotHoldRepository lotHoldRepository) {
         this.lotRepository = lotRepository;
         this.routeStepRepository = routeStepRepository;
         this.equipmentRepository = equipmentRepository;
         this.lotHistoryRepository = lotHistoryRepository;
+        this.lotHoldRepository = lotHoldRepository;
     }
     @Transactional
     public LotHistory trackIn(String lotNo, String eqpCode, String operator) {
 
         Lot lot = lotRepository.findByLotNo(lotNo)
                 .orElseThrow(() -> new NotFoundException("Lot not found: " + lotNo));
+
+        if (lotHoldRepository.existsByLotIdAndReleaseTimeIsNull(lot.getId())) {
+            throw new TrackException("Lot " + lotNo + " is on hold and cannot be tracked in");
+        }
 
         Equipment eqp = equipmentRepository.findByEqpCode(eqpCode)
                 .orElseThrow(() -> new NotFoundException("Equipment not found: " + eqpCode));
